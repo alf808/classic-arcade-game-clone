@@ -1,12 +1,16 @@
-//some globals
-var canvaswidth = 505; //ctx.canvas.width
-var charSelected; // to track if a player sprite has been selected
+// some constants
+var CANVAS_WIDTH = 505; //ctx.canvas.width
 //some common x and y positions for player
-var fifthRowPos = (83 * 4) - 8; // on 5th row up 8 on y axis for cosmetic reasons
-var fifthColPos = 101 * 4; // on 5th column
+var FIFTH_ROW_POS = (83 * 4) - 8; // on 5th row up 8 on y axis for cosmetic reasons
+var FIFTH_COLUMN_POS = 101 * 4; // on 5th column
+
+// some globals
+var allEnemies = [],
+		player = {},
+		game = {};
 
 var Sprite = function (x, y) {
-		this.width = 101; // how do you get images dimensions?
+		this.width = 101; // how do you get images dimensions? Resources.get??
 		this.height = 171;
 		// put image off screen if x and y not defined
 		if (x || x === 0) {
@@ -21,7 +25,6 @@ var Sprite = function (x, y) {
 		}
 };
 
-
 // Enemies our player must avoid
 var Enemy = function(y,pos) {
 		// Variables applied to each of our instances go here,
@@ -33,7 +36,6 @@ var Enemy = function(y,pos) {
 		this.y = y;
 		Sprite.call(this, this.x, this.y);
 		this.whereAreMyBounds();
-		checkCollisions(this);
 };
 
 Enemy.prototype = Object.create(Sprite.prototype);
@@ -45,9 +47,9 @@ Enemy.prototype.update = function(dt) {
 		// which will ensure the game runs at the same speed for
 		// all computers.
 		this.x = this.x + (this.moveBy * dt);
-		if (this.x >= canvaswidth) { this.x = -this.width; }
+		if (this.x >= CANVAS_WIDTH) { this.x = -this.width; }
 		this.whereAreMyBounds();
-		checkCollisions(this);
+		game.checkCollisions(this);
 };
 
 Enemy.prototype.whereAreMyBounds = function () {
@@ -66,6 +68,7 @@ Enemy.prototype.render = function() {
 // This class requires an update(), render() and
 // a handleInput() method.
 var Player = function() {
+		this.charSelected = false;
 		this.whichCharacter = 5;
 		this.selectChar = [
 				'images/char-boy.png',
@@ -78,8 +81,8 @@ var Player = function() {
 		this.numberOfLives = 3;
 		Sprite.call(this);
 		this.sprite = this.selectChar[this.whichCharacter];
-		this.x = canvaswidth / 2 - this.width / 2;
-		this.y = fifthRowPos;
+		this.x = CANVAS_WIDTH / 2 - this.width / 2;
+		this.y = FIFTH_ROW_POS;
 		this.whereAreMyBounds();
 };
 
@@ -102,18 +105,16 @@ Player.prototype.whereAreMyBounds = function () {
 
 Player.prototype.render = function() {
 		ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
-		displayGameStatus();
 };
 
 Player.prototype.handleInput = function(keyPress) {
 	if (keyPress) {
 		// if a player is NOT selected allow keyPress 1 2 3 4 5 only
-		// keyPress==1||keyPress==2||keyPress==3||keyPress==4||keyPress==5
-		if (!charSelected) {
+		if (!this.charSelected) {
 			if (keyPress >= 1 || keyPress <= 5) {
 				this.whichCharacter = keyPress - 1;
 				this.sprite = this.selectChar[this.whichCharacter]; // select img from array
-				charSelected = true;
+				this.charSelected = true;
 			}
 		}
 		if (keyPress == 'left') {
@@ -128,93 +129,36 @@ Player.prototype.handleInput = function(keyPress) {
 		if (keyPress == 'down') {
 				this.y += 83;
 		}
-		// console.log('keyPress is: ' + keyPress);
-		// console.log('char is: ' + charSelected);
+
+		// check if player is going beyond canvas width and below starting point
+		if (this.y > FIFTH_ROW_POS) {
+			this.y = FIFTH_ROW_POS;
+		}
+
+		if (this.x > FIFTH_COLUMN_POS) {
+			this.x = FIFTH_COLUMN_POS;
+		}
+
+		if (this.x < 1) {
+			this.x = 0;
+		}
 	}
 };
 
-var displayGameStatus = function() {
-	ctx.save();
-	ctx.fillStyle = 'white';
-	ctx.fillRect(0,0,canvaswidth,22);
-	ctx.fillStyle = 'black';
-	ctx.font = '20px bold Arial';
-	ctx.textAlign = 'center';
-	ctx.fillText('Level:  ' + difficultyLevel + ',  Score:  ' + score + ',  Lives:  ' + player.numberOfLives, ctx.canvas.width / 2, 20);
-	ctx.restore();
-	if (charSelected) {
-		// clear the GAME OVER message when new game begins
-		ctx.clearRect(0,22,canvaswidth,21);
-	}
+var Game = function () {
+	this.initialize();
 };
 
-//ene.left < player.right && ene.right > player.left && ene.top < player.bottom
-// && ene.bottom > player.top
-var checkCollisions = function(ene) {
-
-	if (player.down >= ene.up &&
-			player.left <= ene.right &&
-			player.up <= ene.down &&
-			player.right >= ene.left)
-			{
-				// collision occurred; subtract 1 life from players lives
-				console.log('collided');
-				player.numberOfLives -= 1;
-
-				// start again at original position if collision occurs
-				if (player.numberOfLives > 0) {
-					player.x = canvaswidth / 2 - player.width / 2;
-					player.y = fifthRowPos;
-				} else {
-					// GAME OVER display
-					ctx.save();
-					ctx.fillStyle = 'white';
-					ctx.fillRect(0,22,canvaswidth,21);
-					ctx.fillStyle = 'red';
-					ctx.font = '20px bold Arial';
-					ctx.textAlign = 'center';
-					ctx.fillText('GAME OVER!!  Final Score:  ' + score + ',   Reached Level:  ' + difficultyLevel, ctx.canvas.width / 2, 43);
-					ctx.restore();
-
-					// initialize variables for new game
-					score = 0;
-					difficultyLevel = 1;
-					allEnemies.length = 0;
-					player = new Player();
-					charSelected = false;
-					drawAllEnemies(difficultyLevel);
-				}
-
-			}
-			// for debugging collision states
-			// else { console.log('ok'); }
-
-// check if player made it to water which means VICTORY, point scored
-	if (player.y <= 0) {
-		console.log('you scored');
-
-		player.x = canvaswidth / 2 - player.width / 2;
-		player.y = fifthRowPos;
-		difficultyLevel += 1;
-		score += 100 * difficultyLevel; // score bigger as difficultyLevel increases
-		drawAllEnemies(difficultyLevel);
-	}
-
-// check if player is going beyond canvas width and below starting point
-			if (player.y > fifthRowPos) {
-				player.y = fifthRowPos;
-			}
-
-			if (player.x > fifthColPos) {
-				player.x = fifthColPos;
-			}
-
-			if (player.x < 1) {
-				player.x = 0;
-			}
+Game.prototype.initialize = function () {
+	player = new Player();
+	allEnemies = [];
+	this.score = 0;
+	this.difficultyLevel = 1;
+	this.drawAllEnemies(this.difficultyLevel);
+	this.displayGameStatus();
 };
 
-var drawAllEnemies = function(numOfEnemies) {
+Game.prototype.drawAllEnemies = function(numOfEnemies) {
 	allEnemies.length = 0;
 	// enemy below takes 2 arguments: the Row position, and the Movement pace
 	// draw enemy in any of the 3 rows randomly. Speed is randomized steps along x-axis
@@ -225,14 +169,69 @@ var drawAllEnemies = function(numOfEnemies) {
 	}
 };
 
+Game.prototype.displayGameStatus = function() {
+	ctx.save();
+	ctx.fillStyle = 'white';
+	ctx.fillRect(0,0,CANVAS_WIDTH,22);
+	ctx.fillStyle = 'black';
+	ctx.font = '20px bold Arial';
+	ctx.textAlign = 'center';
+	ctx.fillText('Level:  ' + this.difficultyLevel + ',  Score:  ' + this.score + ',  Lives:  ' + player.numberOfLives, CANVAS_WIDTH / 2, 20);
+	ctx.restore();
+	if (player.charSelected) {
+		// clear the GAME OVER message when new game begins
+		ctx.clearRect(0,22,CANVAS_WIDTH,21);
+	}
+};
+
+Game.prototype.checkCollisions = function(enem) {
+
+	if (player.down >= enem.up && player.left <= enem.right &&
+			player.up <= enem.down && player.right >= enem.left)
+			{
+				// collision occurred; subtract 1 life from players lives
+				player.numberOfLives = player.numberOfLives - 1;
+				this.displayGameStatus();
+
+				// start player again at original position if collision occurs
+				if (player.numberOfLives > 0) {
+					player.x = CANVAS_WIDTH / 2 - player.width / 2;
+					player.y = FIFTH_ROW_POS;
+				} else {
+					// GAME OVER display
+					ctx.save();
+					ctx.fillStyle = 'white';
+					ctx.fillRect(0,22,CANVAS_WIDTH,21);
+					ctx.fillStyle = 'red';
+					ctx.font = '20px bold Arial';
+					ctx.textAlign = 'center';
+					ctx.fillText('GAME OVER!!  Final Score:  ' + this.score + ',   Reached Level:  ' + this.difficultyLevel, CANVAS_WIDTH / 2, 43);
+					ctx.restore();
+
+					// initialize variables for new game
+					this.initialize();
+				}
+			}
+
+// check if player made it to water which means VICTORY, point scored
+	if (player.y <= 0) {
+		player.x = CANVAS_WIDTH / 2 - player.width / 2;
+		player.y = FIFTH_ROW_POS;
+		this.difficultyLevel += 1;
+		this.score += 100 * this.difficultyLevel; // score bigger as difficultyLevel increases
+		this.displayGameStatus();
+		this.drawAllEnemies(this.difficultyLevel);
+	}
+};
+
 // Now instantiate your objects.
 // Place all enemy objects in an array called allEnemies
 // Place the player object in a variable called player
-var score = 0;
-var difficultyLevel = 1;
-var player = new Player();
-var allEnemies = [];
-drawAllEnemies(difficultyLevel);
+var playGame = function () {
+	game = new Game();
+};
+
+Resources.onReady(playGame);
 
 // This listens for key presses and sends the keys to your
 // Player.handleInput() method. You don't need to modify this.
@@ -245,7 +244,7 @@ document.addEventListener('keyup', function(e) {
 				53: 5
 		};
 		// as soon as player is selected allow arrow keys
-		if (charSelected) {
+		if (player.charSelected) {
 			allowedKeys = {
 				37: 'left',
 				38: 'up',

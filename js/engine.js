@@ -156,7 +156,7 @@ var Engine = (function(global) {
 
 						ctx.fillStyle = 'blue';
 						ctx.font = '24px bold Arial';
-						if (!charSelected) {
+						if (!player.charSelected) {
 							ctx.fillText('Choose a Character Below to Begin', ctx.canvas.width / 2, ctx.canvas.height / 2 + 150);
 						}
 
